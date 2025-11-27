@@ -223,7 +223,7 @@ image/in ───► image-generator
              data-logger
               │
               ▼
-        PostgreSQL (files)
+        PostgreSQL (files data)
 ```
 
 ---
