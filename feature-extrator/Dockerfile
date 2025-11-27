@@ -2,9 +2,8 @@ FROM my-base-image
 
 WORKDIR /app
 
-# Copy app source and images
+# Copy app source
 COPY main.cpp .
-# COPY images /images
 
 # Build the app
 RUN g++ -o feature_extrator_app main.cpp $(pkg-config --cflags --libs opencv4) -lSimpleAmqpClient -lboost_system -lboost_thread -lpthread

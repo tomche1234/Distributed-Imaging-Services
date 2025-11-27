@@ -105,6 +105,7 @@ int main() {
         std::string folderpath = "/images/in";
         std::vector<fs::path> files_to_process = get_all_files(folderpath);
         for (const auto& file_path : files_to_process) {
+            // loop the files and load file content
             std::string fullFilePath = file_path.string();
 
             if (!isFileStable(fullFilePath)) {
@@ -130,7 +131,7 @@ int main() {
 
                 std::cout << "Published: " << filename << " size=" << binaryData.size() << std::endl;
 
-                // 4. Delete file after successful publish
+                // Delete file after successful publish
                 fs::remove(fullFilePath);
                 std::cout << "Deleted: " << filename << std::endl;
 

@@ -83,7 +83,7 @@ This launches:
 
 ## 3.1 PostgreSQL Database
 
-Used by App3 to store processed image metadata and SIFT keypoint data.
+Used by data-logger to store processed image metadata and SIFT keypoint data.
 
 Database: `voyis_main`
 Table structure:

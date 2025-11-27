@@ -53,12 +53,10 @@ int main() {
     std::string consumer_tag = channel->BasicConsume("extract_results", "json_result", true, false, false);
     while (true)
     {
-      // std::cout << " [*] Waiting for messages. To exit press CTRL+C\n";
-
       AmqpClient::Envelope::ptr_t envelope;
       bool gotMessage = channel->BasicConsumeMessage("json_result", envelope, 500);
       if (!gotMessage) {
-        // std::cout << "No message in queue. Skip processing." << std::endl;
+        // If no message in queue. Skip processing.
         continue;
       }
       std::string message = envelope->Message()->Body();

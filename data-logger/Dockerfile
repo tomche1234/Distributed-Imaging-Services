@@ -1,13 +1,12 @@
 FROM my-base-image
 
+# --- START libpqxx DEPENDENCY INSTALLATION ---
 RUN apt-get update && \
     apt-get install -y \
     libpqxx-dev \
     libboost-date-time-dev \
     && rm -rf /var/lib/apt/lists/*
 # --- END libpqxx DEPENDENCY INSTALLATION ---
-
-# ... (rest of your existing setup)
 
 # --- APPLICATION BUILD START ---
 WORKDIR /app
