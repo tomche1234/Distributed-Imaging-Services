@@ -1,0 +1,34 @@
+# Base image
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build tools and dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libopencv-dev \
+    cmake \
+    git \
+    libboost-all-dev \
+    librabbitmq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install nlohmann/json
+RUN git clone https://github.com/nlohmann/json.git /tmp/json && \
+    mkdir -p /usr/include/nlohmann && \
+    cp /tmp/json/single_include/nlohmann/json.hpp /usr/include/nlohmann/ && \
+    rm -rf /tmp/json
+
+# Install SimpleAmqpClient
+RUN git clone https://github.com/alanxz/SimpleAmqpClient.git /tmp/SimpleAmqpClient && \
+    mkdir -p /tmp/SimpleAmqpClient/build && \
+    cd /tmp/SimpleAmqpClient/build && \
+    cmake .. && make && make install && \
+    rm -rf /tmp/SimpleAmqpClient
+
+# Base image is ready for C++ apps
+
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH

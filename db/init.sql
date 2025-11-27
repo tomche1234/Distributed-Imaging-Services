@@ -1,0 +1,7 @@
+CREATE TABLE files (
+  id SERIAL PRIMARY KEY,
+  filename VARCHAR(100) NOT NULL,
+  backup_path VARCHAR(255) NOT NULL,
+  json_data JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
