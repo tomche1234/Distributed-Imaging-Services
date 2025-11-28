@@ -130,7 +130,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 Stores processed data.
 
 
-## PostgreSQL Connection Details
+#### Connection Details
 
 The local PostgreSQL instance is configured as follows:
 
