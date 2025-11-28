@@ -33,9 +33,9 @@ services:
     # restart: unless-stopped
 
 
-  feature-extrator-app:
-    build: ./feature-extrator
-    container_name: cpp-feature-extrator-app
+  feature-extractor-app:
+    build: ./feature-extractor
+    container_name: cpp-feature-extractor-app
     depends_on:
       rabbitmq:
         condition: service_healthy

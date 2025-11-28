@@ -7,15 +7,85 @@ All applications share a common Ubuntu-based Docker image with OpenCV, Boost, Si
 
 ---
 
-# 🧱 1. Base Docker Image
+# Pre-requisites
 
-Before running the system, build the shared base image that installs all required build tools and libraries:
+Before running the pipeline, ensure you have Docker and Docker Compose installed.
 
-## Dockerfile.base
+### Install Docker
 
-This is the exact base image used:
+# Running Instructions
+
+Follow these steps to set up and run the distributed image-processing pipeline.
+
+## 🧩 Step 1 — Clone the Repository
+
+```sh
+git clone https://github.com/tomche1234/Distributed-Imaging-Services.git
+cd Distributed-Imaging-Services
+```
+
+## 🏗️ Step 2 — Build the Base Docker Image
+
+The base image contains all shared dependencies (OpenCV, Boost, RabbitMQ client, JSON, build tools).
+
+```sh
+docker build -t my-base-image -f Dockerfile.base .
+```
+
+This must be done **before** starting any application containers.
+
+## 📂 Step 3 — Prepare Input Folder
+
+The image-generator reads files from:
 
 ```
+images/in
+```
+
+Create these folders locally:
+
+```sh
+mkdir -p images/in
+mkdir -p images/backup
+```
+
+Then place any `.jpg`, `.jpeg`, or `.png` files inside:
+
+```
+images/in/
+```
+
+## 🚀 Step 4 — Run the Pipeline
+
+Start all services:
+
+```sh
+docker-compose up --build -d
+```
+
+This will start:
+
+* PostgreSQL
+* RabbitMQ
+* image-generator
+* feature-extractor
+* data-logger
+
+---
+
+# 🧱 Base Docker Image
+
+The pipeline uses a shared Ubuntu-based base image with OpenCV, Boost, SimpleAmqpClient, and JSON.
+
+### Build the base image:
+
+```sh
+docker build -t my-base-image -f Dockerfile.base .
+```
+
+### Dockerfile.base (for reference):
+
+```dockerfile
 # Base image
 FROM ubuntu:22.04
 
@@ -51,189 +121,123 @@ RUN git clone https://github.com/alanxz/SimpleAmqpClient.git /tmp/SimpleAmqpClie
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ```
 
-### Build the shared base image:
+---
 
-```sh
-docker build -t my-base-image -f Dockerfile.base .
-```
+# System Components
 
-All apps (image-generator, feature-extrator, data-logger) inherit from this image.
+### PostgreSQL
+
+Stores processed data.
+
+### RabbitMQ
+
+Handles both message queues:
+
+| Queue             | Producer          | Consumer          |
+| ----------------- | ----------------- | ----------------- |
+| `file_queue`      | image-generator   | feature-extractor |
+| `extract_results` | feature-extractor | data-logger       |
 
 ---
 
-# 🚀 2. Start the Entire System
+# 🖼️ Image Generator
 
-Once the base image is built:
+* Watches `images/in/` every 10 seconds
+* Reads JPG/PNG (validates real images)
+* Sends raw binary to RabbitMQ
+* Saves backup files under:
 
-```sh
-docker-compose up --build -d
-```
-
-This launches:
-
-* PostgreSQL
-* RabbitMQ
-* image-generator
-* feature-extrator
-* data-logger
+  ```
+  images/backup/YYYY/MM/
+  ```
 
 ---
 
-# 📦 3. System Components
+# 🔍 Feature Extractor
 
-## 3.1 PostgreSQL Database
-
-Used by data-logger to store processed image metadata and SIFT keypoint data.
-
-Database: `voyis_main`
-Table structure:
-
-```sql
-CREATE TABLE files (
-  id SERIAL PRIMARY KEY,
-  filename VARCHAR(100) NOT NULL,
-  backup_path VARCHAR(255) NOT NULL,
-  json_data JSONB NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+* Consumes raw image binaries
+* Decodes using OpenCV
+* Runs SIFT
+* Publishes JSON results to `extract_results`
 
 ---
 
-## 3.2 RabbitMQ
+# 🗄️ Data Logger
 
-Message broker for communication:
-
-| Queue Name        | Producer         | Consumer             |
-| ----------------- | ---------------- | -------------------- |
-| `file_queue`      | image-generator  | feature-extrator     |
-| `extract_results` | feature-extrator | data-logger          |
+* Saves processed results to PostgreSQL
+* Inserts JSONB metadata and file info
 
 ---
 
-# 🖼️ 4. Image Generator
-
-Reads images from a folder and continuously publishes them via RabbitMQ.
-
-### Responsibilities
-
-* Input folder: `image/in`
-* Reads all image files
-* Supports small to very large images (>30 MB)
-* Loops forever
-* Publishes raw binary via SimpleAmqpClient
-* Saves backup binary into `image/backup/YYYY/MM/filename`
-* Sends messages to `file_queue`
-
----
-
-# 🔍 5. Feature Extrator
-
-Receives binary images, runs SIFT, and forwards results.
-
-### Pipeline
-
-1. Consumes from `file_queue`
-2. Decodes binary → `cv::Mat`
-3. Runs SIFT detector:
-
-   * Keypoints
-   * Descriptors
-4. Packages image + JSON metadata
-5. Publishes to `extract_results`
-
----
-
-# 🗄️ 6. Storage Service
-
-Consumes processed messages and saves them to PostgreSQL.
-
-### Responsibilities
-
-* Listen on `extract_results`
-* Insert into table `files`
-* Store:
-
-  * filename
-  * backup path
-  * JSON data (keypoints/descriptors)
-  * timestamp
-
----
-
-# 📁 Folder Structure
+# Folder Structure
 
 ```
 project/
 ├── Dockerfile.base
 ├── docker-compose.yml
-├── image/
-│   ├── in/             # image-generator reads
-│   └── backup/         # image-generator stores YYYY/MM/...
+├── images/
+│   ├── in/
+│   └── backup/
 ├── image-generator/
-│   └── ...
-├── feature-extrator/
-│   └── ...
+├── feature-extractor/
 └── data-logger/
-    └── ...
 ```
 
 ---
 
-# ▶️ Running & Debugging
+# Running & Debugging
 
 ### Start all:
 
-```
+```sh
 docker-compose up --build -d
 ```
 
 ### View logs:
 
-```
+```sh
 docker logs cpp-image-generator-app -f
-docker logs cpp-feature-extrator-app -f
+docker logs cpp-feature-extractor-app -f
 docker logs cpp-data-logger-app -f
 ```
 
 ### Stop:
 
-```
+```sh
 docker-compose down
 ```
 
 ---
 
-# 🔗 Data Flow Overview
+# Data Flow
 
 ```
-           (Images)
-image/in ───► image-generator
-              │
-              ▼
-        RabbitMQ: file_queue
-              │
-              ▼
-             feature-extrator
-              │
-              ▼
-        RabbitMQ: extract_results
-              │
-              ▼
-             data-logger
-              │
-              ▼
-        PostgreSQL (files data)
+images/in
+   │
+   ▼
+image-generator
+   │
+   ▼
+RabbitMQ → file_queue
+   │
+   ▼
+feature-extractor (SIFT)
+   │
+   ▼
+RabbitMQ → extract_results
+   │
+   ▼
+data-logger → PostgreSQL (files table)
 ```
 
 ---
 
-# ✔️ Summary
+# Summary
 
-This pipeline provides:
+This project provides:
 
-* Continuous image streaming
-* IPC messaging via RabbitMQ
-* SIFT extraction using OpenCV
-* JSON metadata handling via nlohmann/json
-* Storage us
+* Continuous image ingestion
+* Distributed processing via RabbitMQ
+* SIFT feature extraction
+* JSON-based metadata
+* PostgreSQL storage
