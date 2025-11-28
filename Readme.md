@@ -129,6 +129,16 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 Stores processed data.
 
+
+## PostgreSQL Connection Details
+
+The local PostgreSQL instance is configured as follows:
+
+- **Host:** `localhost`  
+- **Port:** `5454`  
+- **Username:** `postgres`  
+- **Password:** `postgres`  
+
 ### RabbitMQ
 
 Handles both message queues:
