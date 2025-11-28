@@ -54,17 +54,13 @@ int main() {
     while (true)
     {
       AmqpClient::Envelope::ptr_t envelope;
-      bool gotMessage = channel->BasicConsumeMessage("json_result", envelope, 500);
-      if (!gotMessage) {
-        // If no message in queue. Skip processing.
-        continue;
-      }
+      channel->BasicConsumeMessage("json_result", envelope);
       std::string message = envelope->Message()->Body();
-      std::cout << " [x] Received: " << message << std::endl;
-      channel->BasicAck(envelope);
-      std::cout << " [✓] Done & ACKed\n";
+      std::cout << " [x] Received: json data" << std::endl;
       json body = json::parse(message);
       insertFile(body);
+      channel->BasicAck(envelope);
+      std::cout << " [✓] Done & ACKed\n";
     }
   }
   catch (const std::exception& e) {
