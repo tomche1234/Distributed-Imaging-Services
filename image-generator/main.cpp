@@ -72,10 +72,19 @@ std::vector<fs::path> get_all_files(const fs::path& directory_path)
         return file_paths;
     }
     
-    // Iterate over all entries in the directory
+    // Iterate over all entries in the directory and get jpg/png files only
     for (const auto& entry : fs::directory_iterator(directory_path)) {
-        if (entry.is_regular_file()) {
-            file_paths.push_back(entry.path());
+        if (!entry.is_regular_file()) continue;
+
+        fs::path p = entry.path();
+        std::string ext = p.extension().string();
+
+        // Normalize extension to lowercase
+        std::transform(ext.begin(), ext.end(), ext.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+
+        if (ext == ".jpg" || ext == ".jpeg" || ext == ".png") {
+            file_paths.push_back(p);
         }
     }
     return file_paths;
@@ -104,47 +113,57 @@ int main() {
     {
         std::string folderpath = "/images/in";
         std::vector<fs::path> files_to_process = get_all_files(folderpath);
+
         for (const auto& file_path : files_to_process) {
-            // loop the files and load file content
-            std::string fullFilePath = file_path.string();
-
-            if (!isFileStable(fullFilePath)) {
-                continue;
-            }
-
-            std::string filename = file_path.filename().string();
-            std::string binaryData = readBinary(fullFilePath);
-
-            std::string backupPath = saveToBackup(filename, binaryData);
-            
-            AmqpClient::BasicMessage::ptr_t msg = AmqpClient::BasicMessage::Create(binaryData);
-            AmqpClient::Table headers;
-            headers["filename"] = AmqpClient::TableValue(filename);
-            headers["backupPath"] = AmqpClient::TableValue(backupPath);
-            msg->HeaderTable(headers);
-
-            // Set metadata
-            msg->ContentType("application/octet-stream");
-            msg->DeliveryMode(AmqpClient::BasicMessage::dm_persistent);
             try {
-                channel->BasicPublish("", "file_queue", msg);
+                std::string fullFilePath = file_path.string();
 
-                std::cout << "Published: " << filename << " size=" << binaryData.size() << std::endl;
+                // Skip files that are still being written
+                if (!isFileStable(fullFilePath)) {
+                    continue;
+                }
 
-                // Delete file after successful publish
-                fs::remove(fullFilePath);
-                std::cout << "Deleted: " << filename << std::endl;
+                std::string filename = file_path.filename().string();
+                std::string binaryData = readBinary(fullFilePath);
+
+                if (binaryData.empty()) {
+                    std::cerr << "Warning: file " << filename << " is empty, skipping.\n";
+                    continue;
+                }
+
+                std::string backupPath = saveToBackup(filename, binaryData);
+
+                AmqpClient::BasicMessage::ptr_t msg = AmqpClient::BasicMessage::Create(binaryData);
+                AmqpClient::Table headers;
+                headers["filename"] = AmqpClient::TableValue(filename);
+                headers["backupPath"] = AmqpClient::TableValue(backupPath);
+                msg->HeaderTable(headers);
+
+                // Set metadata
+                msg->ContentType("application/octet-stream");
+                msg->DeliveryMode(AmqpClient::BasicMessage::dm_persistent);
+
+                // Publish message
+                try {
+                    channel->BasicPublish("", "file_queue", msg);
+                    std::cout << "Published: " << filename << " size=" << binaryData.size() << std::endl;
+
+                    // Delete the file after successful publish
+                    fs::remove(fullFilePath);
+                    std::cout << "Deleted: " << filename << std::endl;
+
+                } catch (const std::exception &ex) {
+                    std::cerr << "Error publishing " << filename << ": " << ex.what() << std::endl;
+                }
 
             } catch (const std::exception &ex) {
-                std::cerr << "Error publishing " << filename 
-                        << ": " << ex.what() << std::endl;
+                std::cerr << "Error processing file " << file_path << ": " << ex.what() << std::endl;
             }
-
         }
+
+        std::this_thread::sleep_for(std::chrono::seconds(10));
     }
-    
-    
-    
+
 
     return 0;
 }
