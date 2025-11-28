@@ -118,7 +118,7 @@ RUN git clone https://github.com/alanxz/SimpleAmqpClient.git /tmp/SimpleAmqpClie
     rm -rf /tmp/SimpleAmqpClient
 
 # Base image is ready for C++ apps
-ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/lib
 ```
 
 ---
